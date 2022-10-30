@@ -7,6 +7,9 @@ const cookieParser = require('cookie-parser');
 // use html-entities library 
 //const {encode} = require('html-entities');
 
+// use the node-fetch library
+const fetch = require('node-fetch');
+
 // create a new server application
 const app = express();
 
@@ -62,7 +65,6 @@ app.get('/', (req, res) => {
   });
 });
 
-
 /* Pre-ejs (obsolete) code
 
 app.get('/', (req, res) => {
@@ -87,6 +89,65 @@ app.get('/', (req, res) => {
 });
 
 */
+
+
+// Trivia Code
+app.get("/trivia", async (req, res) => {
+  // fetch the data
+  const response = await fetch("https://opentdb.com/api.php?amount=1&type=multiple");
+
+  // fail if bad response
+  if (!response.ok) {
+    res.status(500);
+    res.send(`Open Trivia Database failed with HTTP code ${response.status}`);
+    return;
+  }
+
+  // interpret the body as json
+  const content = await response.json();
+
+  // fail if db failed
+  if (content.response_code !== 0) {
+    res.status(500);
+    res.send(`Open Trivia Database failed with internal response code ${content.response_code}`);
+    return;
+  }
+
+  // Need the [0] on the end, since results is an Array of Objects (even though it contains only 1 object). 
+  const results = content.results[0]; 
+  
+  console.log(results);
+
+  // Prepare answer variables for decision making and passing into trivia.ejs
+  const correctAnswer = results.correct_answer;
+  const incorrectAnswers = results.incorrect_answers;
+  const answers = incorrectAnswers.concat(correctAnswer);
+  
+  // Sort the answers so the last item isn't always the answer
+  answers.sort();
+  
+  //console.log(answers);
+
+  // Modified to use onclick, so that correct answer isn't shown (in lower left corner of screen) when hovering over the links.
+  // However, this seems to have a side effect of dispalying all links as visited when the first one is clicked, not desired but liveable for now.
+  const answerLinks = answers.map(answer => {
+    return `<a href="#" onclick="javascript:alert('${
+        answer === correctAnswer ? 'Correct!' : 'Incorrect, Please Try Again!'
+      }')">${answer}</a>`
+  });
+
+  //console.log(answerLinks);
+
+  // respond to the browser
+  // Render the page
+  res.render('trivia', { 
+    question: results.question,
+    answers: answerLinks,
+    category: results.category,
+    difficulty: results.difficulty,
+  });
+});
+// End Trivia Code
 
 
 // Start listening for network connections
